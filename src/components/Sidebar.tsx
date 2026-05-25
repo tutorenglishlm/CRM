@@ -4,13 +4,15 @@ import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase-client'
 
 const nav = [
-  { href: '/admin', label: 'Dashboard', icon: 'ti-layout-dashboard', exact: true },
-  { href: '/admin/leads', label: 'Solicitudes', icon: 'ti-user-plus' },
-  { href: '/admin/students', label: 'Alumnos', icon: 'ti-users' },
-  { href: '/admin/classes', label: 'Clases', icon: 'ti-book' },
-  { href: '/admin/attendance', label: 'Asistencia', icon: 'ti-calendar-check' },
-  { href: '/admin/payments', label: 'Pagos', icon: 'ti-credit-card' },
-  { href: '/admin/financials', label: 'Finanzas', icon: 'ti-chart-line' },
+  { href:'/admin', label:'Dashboard', icon:'ti-layout-dashboard', exact:true },
+  { href:'/admin/leads', label:'Solicitudes', icon:'ti-user-plus' },
+  { href:'/admin/students', label:'Alumnos', icon:'ti-users' },
+  { href:'/admin/classes', label:'Clases', icon:'ti-book' },
+  { href:'/admin/groups', label:'Grupos', icon:'ti-users-group' },
+  { href:'/admin/calendar', label:'Calendario', icon:'ti-calendar' },
+  { href:'/admin/attendance', label:'Asistencia', icon:'ti-calendar-check' },
+  { href:'/admin/payments', label:'Pagos', icon:'ti-credit-card' },
+  { href:'/admin/financials', label:'Finanzas', icon:'ti-chart-line' },
 ]
 
 export default function Sidebar() {
@@ -33,10 +35,10 @@ export default function Sidebar() {
           </div>
         </div>
       </div>
-      <div style={{ padding:'12px', flex:1 }}>
+      <div style={{ padding:'12px', flex:1, overflowY:'auto' }}>
         <div style={{ fontSize:10, fontWeight:600, color:'#475569', letterSpacing:'0.08em', textTransform:'uppercase', padding:'0 8px', marginBottom:6 }}>Menu</div>
-        {nav.map(item => {
-          const active = item.exact ? pathname === item.href : pathname.startsWith(item.href)
+        {nav.map(item=>{
+          const active = item.exact?pathname===item.href:pathname.startsWith(item.href)
           return (
             <Link key={item.href} href={item.href} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', borderRadius:6, marginBottom:1, background:active?'#1E293B':'transparent', color:active?'#F8FAFC':'#64748B', textDecoration:'none', fontSize:13, fontWeight:active?500:400 }}>
               <i className={`ti ${item.icon}`} style={{ fontSize:16, flexShrink:0 }} aria-hidden="true" />
