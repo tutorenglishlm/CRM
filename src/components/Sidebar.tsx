@@ -10,7 +10,6 @@ const nav = [
   { href:'/admin/classes', label:'Clases', icon:'ti-book' },
   { href:'/admin/groups', label:'Grupos', icon:'ti-users-group' },
   { href:'/admin/calendar', label:'Calendario', icon:'ti-calendar' },
-  { href:'/admin/attendance', label:'Asistencia', icon:'ti-calendar-check' },
   { href:'/admin/payments', label:'Pagos', icon:'ti-credit-card' },
   { href:'/admin/financials', label:'Finanzas', icon:'ti-chart-line' },
 ]
@@ -43,7 +42,7 @@ export default function Sidebar() {
             <Link key={item.href} href={item.href} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', borderRadius:6, marginBottom:1, background:active?'#1E293B':'transparent', color:active?'#F8FAFC':'#64748B', textDecoration:'none', fontSize:13, fontWeight:active?500:400 }}>
               <i className={`ti ${item.icon}`} style={{ fontSize:16, flexShrink:0 }} aria-hidden="true" />
               <span style={{ flex:1 }}>{item.label}</span>
-              {active && <div style={{ width:4, height:4, borderRadius:'50%', background:'#F59E0B' }} />}
+              {active&&<div style={{ width:4, height:4, borderRadius:'50%', background:'#F59E0B' }} />}
             </Link>
           )
         })}
