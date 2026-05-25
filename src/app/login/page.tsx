@@ -1,14 +1,12 @@
 'use client'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase-client'
-import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
   const supabase = createClient()
 
   async function handleLogin(e: React.FormEvent) {
@@ -20,8 +18,7 @@ export default function LoginPage() {
       setError('Correo o contraseña incorrectos.')
       setLoading(false)
     } else {
-      router.push('/admin')
-      router.refresh()
+      window.location.href = '/admin'
     }
   }
 
@@ -34,7 +31,6 @@ export default function LoginPage() {
         background: '#fff', borderRadius: 16, padding: '2.5rem 2rem',
         width: '100%', maxWidth: 400, boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
       }}>
-        {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div style={{
             width: 56, height: 56, borderRadius: '50%',
@@ -94,8 +90,7 @@ export default function LoginPage() {
               width: '100%', padding: '12px',
               background: loading ? 'var(--muted)' : 'var(--navy)',
               color: '#fff', border: 'none', borderRadius: 8,
-              fontSize: 15, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'background 0.2s'
+              fontSize: 15, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer'
             }}
           >
             {loading ? 'Entrando...' : 'Iniciar sesión'}
