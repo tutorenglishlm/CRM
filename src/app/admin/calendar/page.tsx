@@ -3,13 +3,30 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase-client'
 
 const DAYS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
-const DAYS_FULL = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
-const HOURS = Array.from({length:14},(_,i)=>i+7) // 7am to 8pm
+const HOURS = Array.from({length:14},(_,i)=>i+7)
 
 const TYPE_COLOR: Record<string,{bg:string,color:string,border:string}> = {
   one_on_one: { bg:'#EFF6FF', color:'#1E40AF', border:'#BFDBFE' },
   group: { bg:'#FEF3C7', color:'#D97706', border:'#FDE68A' },
+}
+
+function generateRecurringDates(startDate: string, freq: string, endType: string, endDate: string, endCount: number): string[] {
+  const dates: string[] = []
+  const current = new Date(startDate + 'T12:00:00')
+  const limit = endType === 'date' ? new Date(endDate + 'T12:00:00') : null
+  const max = endType === 'count' ? endCount : 365
+
+  while (dates.length < max) {
+    dates.push(current.toISOString().split('T')[0])
+    if (freq === 'weekly') current.setDate(current.getDate() + 7)
+    else if (freq === 'biweekly') current.setDate(current.getDate() + 14)
+    else if (freq === 'monthly') current.setMonth(current.getMonth() + 1)
+    else if (freq === 'custom') current.setDate(current.getDate() + 7)
+    if (limit && current > limit) break
+    if (dates.length >= 365) break
+  }
+  return dates
 }
 
 export default function CalendarPage() {
@@ -20,8 +37,11 @@ export default function CalendarPage() {
   const [classes, setClasses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [selectedSlot, setSelectedSlot] = useState<{date:string,hour:number}|null>(null)
-  const [form, setForm] = useState({ student_id:'', class_id:'', title:'', date:'', time_start:'', time_end:'', type:'one_on_one', notes:'' })
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({
+    student_id:'', class_id:'', title:'', date:'', time_start:'', time_end:'', type:'one_on_one', notes:'',
+    recurring: false, recurrence_freq:'weekly', end_type:'count', end_date:'', end_count:'8'
+  })
   const supabase = createClient()
 
   async function load() {
@@ -39,19 +59,42 @@ export default function CalendarPage() {
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
-    await supabase.from('bookings').insert({
-      student_id: form.student_id||null,
-      class_id: form.class_id||null,
-      title: form.title||null,
-      date: form.date,
-      time_start: form.time_start,
-      time_end: form.time_end,
-      type: form.type,
-      notes: form.notes||null,
-    })
+    setSaving(true)
+
+    if (form.recurring) {
+      const dates = generateRecurringDates(form.date, form.recurrence_freq, form.end_type, form.end_date, parseInt(form.end_count)||8)
+      const groupId = crypto.randomUUID()
+      const rows = dates.map(date => ({
+        student_id: form.student_id||null,
+        class_id: form.class_id||null,
+        title: form.title||null,
+        date,
+        time_start: form.time_start,
+        time_end: form.time_end,
+        type: form.type,
+        notes: form.notes||null,
+        recurring: true,
+        recurrence_freq: form.recurrence_freq,
+        recurrence_group: groupId,
+      }))
+      await supabase.from('bookings').insert(rows)
+    } else {
+      await supabase.from('bookings').insert({
+        student_id: form.student_id||null,
+        class_id: form.class_id||null,
+        title: form.title||null,
+        date: form.date,
+        time_start: form.time_start,
+        time_end: form.time_end,
+        type: form.type,
+        notes: form.notes||null,
+        recurring: false,
+      })
+    }
+
     setShowForm(false)
-    setSelectedSlot(null)
-    setForm({ student_id:'', class_id:'', title:'', date:'', time_start:'', time_end:'', type:'one_on_one', notes:'' })
+    setForm({ student_id:'', class_id:'', title:'', date:'', time_start:'', time_end:'', type:'one_on_one', notes:'', recurring:false, recurrence_freq:'weekly', end_type:'count', end_date:'', end_count:'8' })
+    setSaving(false)
     load()
   }
 
@@ -60,23 +103,21 @@ export default function CalendarPage() {
     load()
   }
 
-  // Week helpers
+  async function deleteRecurringGroup(groupId: string) {
+    await supabase.from('bookings').delete().eq('recurrence_group', groupId)
+    load()
+  }
+
   function getWeekDates(date: Date) {
     const start = new Date(date)
     start.setDate(date.getDate() - date.getDay())
-    return Array.from({length:7},(_,i)=>{
-      const d = new Date(start)
-      d.setDate(start.getDate()+i)
-      return d
-    })
+    return Array.from({length:7},(_,i)=>{ const d = new Date(start); d.setDate(start.getDate()+i); return d })
   }
 
-  // Month helpers
   function getMonthDates(date: Date) {
-    const year = date.getFullYear()
-    const month = date.getMonth()
-    const firstDay = new Date(year, month, 1).getDay()
-    const daysInMonth = new Date(year, month+1, 0).getDate()
+    const year = date.getFullYear(), month = date.getMonth()
+    const firstDay = new Date(year,month,1).getDay()
+    const daysInMonth = new Date(year,month+1,0).getDate()
     const cells: (Date|null)[] = Array(firstDay).fill(null)
     for(let d=1;d<=daysInMonth;d++) cells.push(new Date(year,month,d))
     while(cells.length%7!==0) cells.push(null)
@@ -87,16 +128,9 @@ export default function CalendarPage() {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
   }
 
-  function bookingsForDate(dateStr: string) {
-    return bookings.filter(b=>b.date===dateStr)
-  }
-
+  function bookingsForDate(dateStr: string) { return bookings.filter(b=>b.date===dateStr) }
   function bookingsForSlot(dateStr: string, hour: number) {
-    return bookings.filter(b=>{
-      if(b.date!==dateStr) return false
-      const h = parseInt(b.time_start?.split(':')[0]||'0')
-      return h===hour
-    })
+    return bookings.filter(b=>b.date===dateStr && parseInt(b.time_start?.split(':')[0]||'0')===hour)
   }
 
   function navigate(dir: number) {
@@ -109,8 +143,10 @@ export default function CalendarPage() {
   const weekDates = getWeekDates(currentDate)
   const monthDates = getMonthDates(currentDate)
   const today = formatDate(new Date())
-
   const inp = { width:'100%', padding:'9px 12px', border:'1px solid #E2E8F0', borderRadius:8, fontSize:13, color:'#0F172A', background:'#fff', outline:'none', boxSizing:'border-box' as const }
+  const FREQ_LABEL: Record<string,string> = { weekly:'Semanal', biweekly:'Quincenal', monthly:'Mensual', custom:'Personalizado' }
+
+  const [deleteModal, setDeleteModal] = useState<any>(null)
 
   return (
     <div>
@@ -133,6 +169,33 @@ export default function CalendarPage() {
         </div>
       </div>
 
+      {/* Delete modal */}
+      {deleteModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.4)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:'28px', maxWidth:380, width:'100%', margin:'0 20px' }}>
+            <div style={{ fontSize:15, fontWeight:600, color:'#0F172A', marginBottom:8 }}>Eliminar sesión</div>
+            {deleteModal.recurrence_group ? (
+              <>
+                <p style={{ fontSize:13, color:'#64748B', marginBottom:20, lineHeight:1.6 }}>Esta sesión es parte de una serie recurrente. ¿Qué deseas eliminar?</p>
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  <button onClick={async()=>{ await deleteBooking(deleteModal.id); setDeleteModal(null) }} style={{ padding:'10px 16px', borderRadius:8, background:'#FEF2F2', color:'#991B1B', border:'1px solid #FECACA', fontSize:13, cursor:'pointer', fontWeight:500 }}>Solo esta sesión</button>
+                  <button onClick={async()=>{ await deleteRecurringGroup(deleteModal.recurrence_group); setDeleteModal(null) }} style={{ padding:'10px 16px', borderRadius:8, background:'#0F172A', color:'#fff', border:'none', fontSize:13, cursor:'pointer', fontWeight:500 }}>Todas las sesiones de la serie</button>
+                  <button onClick={()=>setDeleteModal(null)} style={{ padding:'10px 16px', borderRadius:8, background:'#F1F5F9', color:'#64748B', border:'none', fontSize:13, cursor:'pointer' }}>Cancelar</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p style={{ fontSize:13, color:'#64748B', marginBottom:20 }}>¿Eliminar esta sesión? Esta acción no se puede deshacer.</p>
+                <div style={{ display:'flex', gap:8 }}>
+                  <button onClick={async()=>{ await deleteBooking(deleteModal.id); setDeleteModal(null) }} style={{ flex:1, padding:'10px', borderRadius:8, background:'#EF4444', color:'#fff', border:'none', fontSize:13, cursor:'pointer', fontWeight:500 }}>Eliminar</button>
+                  <button onClick={()=>setDeleteModal(null)} style={{ flex:1, padding:'10px', borderRadius:8, background:'#F1F5F9', color:'#64748B', border:'none', fontSize:13, cursor:'pointer' }}>Cancelar</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {showForm && (
         <div style={{ background:'#fff', borderRadius:12, padding:'20px 24px', marginBottom:20, border:'1px solid #E2E8F0' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
@@ -140,7 +203,7 @@ export default function CalendarPage() {
             <button onClick={()=>setShowForm(false)} style={{ background:'none', border:'none', cursor:'pointer', color:'#94A3B8' }}><i className="ti ti-x" style={{ fontSize:16 }} aria-hidden="true" /></button>
           </div>
           <form onSubmit={handleAdd}>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12, marginBottom:12 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12, marginBottom:16 }}>
               <div><label style={{ fontSize:11, color:'#94A3B8', display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Alumno</label>
                 <select style={inp} value={form.student_id} onChange={e=>setForm(f=>({...f,student_id:e.target.value}))}>
                   <option value="">Seleccionar...</option>
@@ -159,7 +222,7 @@ export default function CalendarPage() {
                   <option value="group">Grupal</option>
                 </select>
               </div>
-              <div><label style={{ fontSize:11, color:'#94A3B8', display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Fecha *</label>
+              <div><label style={{ fontSize:11, color:'#94A3B8', display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Fecha inicio *</label>
                 <input required type="date" style={inp} value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))} />
               </div>
               <div><label style={{ fontSize:11, color:'#94A3B8', display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Hora inicio *</label>
@@ -172,8 +235,62 @@ export default function CalendarPage() {
                 <input style={inp} value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="Ej. Clase de conversación" />
               </div>
             </div>
+
+            {/* Recurring toggle */}
+            <div style={{ background:'#F8FAFC', borderRadius:10, padding:'14px 16px', marginBottom:16 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: form.recurring?14:0 }}>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:500, color:'#0F172A' }}>Sesión recurrente</div>
+                  <div style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>Repite automáticamente esta sesión</div>
+                </div>
+                <button type="button" onClick={()=>setForm(f=>({...f,recurring:!f.recurring}))} style={{ width:44, height:24, borderRadius:12, background:form.recurring?'#0F172A':'#CBD5E1', border:'none', cursor:'pointer', position:'relative', transition:'background 0.2s', flexShrink:0 }}>
+                  <div style={{ width:18, height:18, borderRadius:'50%', background:'#fff', position:'absolute', top:3, left:form.recurring?23:3, transition:'left 0.2s' }} />
+                </button>
+              </div>
+
+              {form.recurring && (
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12 }}>
+                  <div><label style={{ fontSize:11, color:'#94A3B8', display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Frecuencia</label>
+                    <select style={inp} value={form.recurrence_freq} onChange={e=>setForm(f=>({...f,recurrence_freq:e.target.value}))}>
+                      <option value="weekly">Semanal</option>
+                      <option value="biweekly">Quincenal</option>
+                      <option value="monthly">Mensual</option>
+                      <option value="custom">Personalizado</option>
+                    </select>
+                  </div>
+                  <div><label style={{ fontSize:11, color:'#94A3B8', display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Termina</label>
+                    <select style={inp} value={form.end_type} onChange={e=>setForm(f=>({...f,end_type:e.target.value}))}>
+                      <option value="count">Después de N sesiones</option>
+                      <option value="date">En una fecha</option>
+                    </select>
+                  </div>
+                  {form.end_type==='count' ? (
+                    <div><label style={{ fontSize:11, color:'#94A3B8', display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Número de sesiones</label>
+                      <input type="number" min="2" max="100" style={inp} value={form.end_count} onChange={e=>setForm(f=>({...f,end_count:e.target.value}))} />
+                    </div>
+                  ) : (
+                    <div><label style={{ fontSize:11, color:'#94A3B8', display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Fecha de fin</label>
+                      <input type="date" style={inp} value={form.end_date} onChange={e=>setForm(f=>({...f,end_date:e.target.value}))} />
+                    </div>
+                  )}
+                  {form.date && (
+                    <div style={{ display:'flex', alignItems:'flex-end' }}>
+                      <div style={{ padding:'9px 12px', background:'#EFF6FF', borderRadius:8, fontSize:12, color:'#1E40AF', width:'100%' }}>
+                        {form.end_type==='count'
+                          ? `${form.end_count} sesiones · ${FREQ_LABEL[form.recurrence_freq]}`
+                          : `${FREQ_LABEL[form.recurrence_freq]} hasta ${form.end_date||'...'}`
+                        }
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div style={{ display:'flex', gap:8 }}>
-              <button type="submit" style={{ padding:'8px 18px', borderRadius:8, background:'#0F172A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>Guardar</button>
+              <button type="submit" disabled={saving} style={{ padding:'8px 18px', borderRadius:8, background:saving?'#94A3B8':'#0F172A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:saving?'not-allowed':'pointer' }}>
+                {saving?'Guardando...':form.recurring?`Crear ${form.end_count||''} sesiones`:'Guardar'}
+              </button>
               <button type="button" onClick={()=>setShowForm(false)} style={{ padding:'8px 18px', borderRadius:8, background:'#F1F5F9', color:'#475569', border:'none', fontSize:13, cursor:'pointer' }}>Cancelar</button>
             </div>
           </form>
@@ -181,7 +298,6 @@ export default function CalendarPage() {
       )}
 
       <div style={{ background:'#fff', borderRadius:12, border:'1px solid #E2E8F0', overflow:'hidden' }}>
-        {/* Nav bar */}
         <div style={{ padding:'14px 20px', borderBottom:'1px solid #F1F5F9', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <button onClick={()=>navigate(-1)} style={{ width:32, height:32, borderRadius:8, border:'1px solid #E2E8F0', background:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
             <i className="ti ti-chevron-left" style={{ fontSize:16, color:'#475569' }} aria-hidden="true" />
@@ -197,11 +313,9 @@ export default function CalendarPage() {
           </button>
         </div>
 
-        {/* Week view */}
         {view==='week' && (
           <div style={{ overflowX:'auto' }}>
             <div style={{ minWidth:700 }}>
-              {/* Day headers */}
               <div style={{ display:'grid', gridTemplateColumns:'60px repeat(7, 1fr)', borderBottom:'1px solid #F1F5F9' }}>
                 <div style={{ padding:'10px 8px' }} />
                 {weekDates.map((d,i)=>{
@@ -215,7 +329,6 @@ export default function CalendarPage() {
                   )
                 })}
               </div>
-              {/* Time slots */}
               {HOURS.map(hour=>(
                 <div key={hour} style={{ display:'grid', gridTemplateColumns:'60px repeat(7, 1fr)', borderBottom:'1px solid #F8FAFC', minHeight:56 }}>
                   <div style={{ padding:'6px 8px', fontSize:11, color:'#CBD5E1', textAlign:'right', paddingRight:12, paddingTop:8 }}>{hour}:00</div>
@@ -223,14 +336,17 @@ export default function CalendarPage() {
                     const dateStr = formatDate(d)
                     const slotBookings = bookingsForSlot(dateStr, hour)
                     return (
-                      <div key={i} onClick={()=>{ setForm(f=>({...f,date:dateStr,time_start:`${String(hour).padStart(2,'0')}:00`,time_end:`${String(hour+1).padStart(2,'0')}:00`})); setShowForm(true) }} style={{ borderLeft:'1px solid #F8FAFC', padding:'3px 4px', cursor:'pointer', minHeight:56, position:'relative' }}>
+                      <div key={i} onClick={()=>{ setForm(f=>({...f,date:dateStr,time_start:`${String(hour).padStart(2,'0')}:00`,time_end:`${String(hour+1).padStart(2,'0')}:00`})); setShowForm(true) }} style={{ borderLeft:'1px solid #F8FAFC', padding:'3px 4px', cursor:'pointer', minHeight:56 }}>
                         {slotBookings.map(b=>{
                           const tc = TYPE_COLOR[b.type]||TYPE_COLOR.one_on_one
                           return (
                             <div key={b.id} style={{ background:tc.bg, border:`1px solid ${tc.border}`, borderRadius:6, padding:'4px 8px', marginBottom:2, position:'relative' }}>
-                              <div style={{ fontSize:11, fontWeight:500, color:tc.color, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{b.students?.name||b.title||'Sesión'}</div>
+                              <div style={{ fontSize:11, fontWeight:500, color:tc.color, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', paddingRight:16 }}>
+                                {b.recurring && <span style={{ fontSize:9, marginRight:4, opacity:0.7 }}>↻</span>}
+                                {b.students?.name||b.title||'Sesión'}
+                              </div>
                               <div style={{ fontSize:10, color:tc.color, opacity:0.7 }}>{b.time_start?.slice(0,5)}–{b.time_end?.slice(0,5)}</div>
-                              <button onClick={e=>{e.stopPropagation();deleteBooking(b.id)}} style={{ position:'absolute', top:2, right:2, background:'none', border:'none', cursor:'pointer', color:tc.color, opacity:0.6, padding:0, fontSize:12, lineHeight:1 }}>×</button>
+                              <button onClick={e=>{e.stopPropagation();setDeleteModal(b)}} style={{ position:'absolute', top:2, right:4, background:'none', border:'none', cursor:'pointer', color:tc.color, opacity:0.6, padding:0, fontSize:13, lineHeight:1 }}>×</button>
                             </div>
                           )
                         })}
@@ -243,7 +359,6 @@ export default function CalendarPage() {
           </div>
         )}
 
-        {/* Month view */}
         {view==='month' && (
           <div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', borderBottom:'1px solid #F1F5F9' }}>
@@ -263,7 +378,8 @@ export default function CalendarPage() {
                     {dayBookings.slice(0,3).map(b=>{
                       const tc = TYPE_COLOR[b.type]||TYPE_COLOR.one_on_one
                       return (
-                        <div key={b.id} style={{ background:tc.bg, borderRadius:4, padding:'2px 6px', marginBottom:2, fontSize:10, color:tc.color, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        <div key={b.id} onClick={e=>{e.stopPropagation();setDeleteModal(b)}} style={{ background:tc.bg, borderRadius:4, padding:'2px 6px', marginBottom:2, fontSize:10, color:tc.color, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                          {b.recurring && <span style={{ fontSize:9, marginRight:2 }}>↻</span>}
                           {b.time_start?.slice(0,5)} {b.students?.name||b.title||'Sesión'}
                         </div>
                       )
@@ -277,14 +393,16 @@ export default function CalendarPage() {
         )}
       </div>
 
-      {/* Legend */}
-      <div style={{ display:'flex', gap:16, marginTop:12 }}>
+      <div style={{ display:'flex', gap:16, marginTop:12, alignItems:'center' }}>
         {Object.entries(TYPE_COLOR).map(([key,val])=>(
           <div key={key} style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:'#64748B' }}>
             <div style={{ width:10, height:10, borderRadius:2, background:val.bg, border:`1px solid ${val.border}` }} />
             {key==='one_on_one'?'1 a 1':'Grupal'}
           </div>
         ))}
+        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:'#64748B' }}>
+          <span style={{ fontSize:11 }}>↻</span> Recurrente
+        </div>
       </div>
     </div>
   )
