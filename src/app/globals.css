@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --navy: #1B2A4A;
+  --navy-light: #243660;
+  --navy-pale: #EEF1F7;
+  --gold: #F5A623;
+  --gold-light: #FDF3E0;
+  --gold-dark: #C47D0A;
+  --border: #DDE2EF;
+  --muted: #6B7A99;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'Geist', system-ui, sans-serif;
+  background: #F4F5F8;
+  color: var(--navy);
+}
+
+input, select, textarea {
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px rgba(245,166,35,0.15);
+}
