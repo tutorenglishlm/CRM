@@ -1,31 +1,11 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-:root {
-  --navy: #1B2A4A;
-  --navy-light: #243660;
-  --navy-pale: #EEF1F7;
-  --gold: #F5A623;
-  --gold-light: #FDF3E0;
-  --gold-dark: #C47D0A;
-  --border: #DDE2EF;
-  --muted: #6B7A99;
-}
-
-* { box-sizing: border-box; }
-
-body {
-  font-family: 'Geist', system-ui, sans-serif;
-  background: #F4F5F8;
-  color: var(--navy);
-}
-
-input, select, textarea {
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-input:focus, select:focus, textarea:focus {
-  border-color: var(--gold) !important;
-  box-shadow: 0 0 0 3px rgba(245,166,35,0.15);
-}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+:root{--navy:#0F172A;--navy-800:#1E293B;--gold:#F59E0B;--gold-light:#FEF3C7;--gold-dark:#D97706;--border:#E2E8F0;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',system-ui,sans-serif;background:#F1F5F9;color:#0F172A;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+input,select,textarea,button{font-family:'Inter',system-ui,sans-serif;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:2px;}

@@ -1,91 +1,60 @@
 'use client'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase-client'
 
-const navItems = [
-  { href: '/admin', label: 'Dashboard', icon: '⊞' },
-  { href: '/admin/students', label: 'Alumnos', icon: '👥' },
-  { href: '/admin/registrations', label: 'Inscripciones', icon: '📋' },
-  { href: '/admin/financials', label: 'Finanzas', icon: '💰' },
+const nav = [
+  { href: '/admin', label: 'Dashboard', icon: 'ti-layout-dashboard', exact: true },
+  { href: '/admin/leads', label: 'Solicitudes', icon: 'ti-user-plus' },
+  { href: '/admin/students', label: 'Alumnos', icon: 'ti-users' },
+  { href: '/admin/classes', label: 'Clases', icon: 'ti-book' },
+  { href: '/admin/attendance', label: 'Asistencia', icon: 'ti-calendar-check' },
+  { href: '/admin/payments', label: 'Pagos', icon: 'ti-credit-card' },
+  { href: '/admin/financials', label: 'Finanzas', icon: 'ti-chart-line' },
 ]
 
 export default function Sidebar() {
   const pathname = usePathname()
-  const router = useRouter()
   const supabase = createClient()
 
-  async function handleSignOut() {
+  async function signOut() {
     await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
+    window.location.href = '/login'
   }
 
   return (
-    <aside style={{
-      width: 220, minHeight: '100vh', background: 'var(--navy)',
-      display: 'flex', flexDirection: 'column', flexShrink: 0
-    }}>
-      {/* Brand */}
-      <div style={{ padding: '1.5rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 38, height: 38, borderRadius: '50%', background: 'var(--gold)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 14, fontWeight: 700, color: 'var(--navy)', flexShrink: 0
-          }}>TE</div>
+    <aside style={{ width:240, minHeight:'100vh', background:'#0F172A', display:'flex', flexDirection:'column', flexShrink:0, borderRight:'1px solid #1E293B' }}>
+      <div style={{ padding:'24px 20px 20px', borderBottom:'1px solid #1E293B' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ width:34, height:34, borderRadius:8, background:'#F59E0B', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:13, color:'#0F172A', flexShrink:0 }}>TE</div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>
-              Tutor<span style={{ color: 'var(--gold)' }}>English</span>LM
-            </div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
-              CRM
-            </div>
+            <div style={{ fontSize:14, fontWeight:600, color:'#F8FAFC' }}>TutorEnglish<span style={{ color:'#F59E0B' }}>LM</span></div>
+            <div style={{ fontSize:11, color:'#475569', marginTop:1 }}>CRM workspace</div>
           </div>
         </div>
       </div>
-
-      {/* Nav */}
-      <nav style={{ padding: '1rem 0.75rem', flex: 1 }}>
-        {navItems.map(item => {
-          const active = item.href === '/admin' ? pathname === '/admin' : pathname.startsWith(item.href)
+      <div style={{ padding:'12px', flex:1 }}>
+        <div style={{ fontSize:10, fontWeight:600, color:'#475569', letterSpacing:'0.08em', textTransform:'uppercase', padding:'0 8px', marginBottom:6 }}>Menu</div>
+        {nav.map(item => {
+          const active = item.exact ? pathname === item.href : pathname.startsWith(item.href)
           return (
-            <Link key={item.href} href={item.href} style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '9px 12px', borderRadius: 8, marginBottom: 2,
-              background: active ? 'var(--gold)' : 'transparent',
-              color: active ? 'var(--navy)' : 'rgba(255,255,255,0.65)',
-              textDecoration: 'none', fontSize: 14, fontWeight: active ? 600 : 400,
-              transition: 'all 0.15s'
-            }}>
-              <span style={{ fontSize: 16 }}>{item.icon}</span>
-              {item.label}
+            <Link key={item.href} href={item.href} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', borderRadius:6, marginBottom:1, background:active?'#1E293B':'transparent', color:active?'#F8FAFC':'#64748B', textDecoration:'none', fontSize:13, fontWeight:active?500:400 }}>
+              <i className={`ti ${item.icon}`} style={{ fontSize:16, flexShrink:0 }} aria-hidden="true" />
+              <span style={{ flex:1 }}>{item.label}</span>
+              {active && <div style={{ width:4, height:4, borderRadius:'50%', background:'#F59E0B' }} />}
             </Link>
           )
         })}
-      </nav>
-
-      {/* Public form link */}
-      <div style={{ padding: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-        <a href="/inscripcion" target="_blank" style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '8px 12px', borderRadius: 8, fontSize: 13,
-          color: 'rgba(255,255,255,0.5)', textDecoration: 'none',
-          border: '1px solid rgba(255,255,255,0.12)'
-        }}>
-          <span>🔗</span> Ver formulario público
+        <div style={{ height:1, background:'#1E293B', margin:'12px 0' }} />
+        <a href="/inscripcion" target="_blank" style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', borderRadius:6, color:'#64748B', textDecoration:'none', fontSize:13 }}>
+          <i className="ti ti-external-link" style={{ fontSize:16 }} aria-hidden="true" />
+          <span>Formulario público</span>
         </a>
       </div>
-
-      {/* Sign out */}
-      <div style={{ padding: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-        <button onClick={handleSignOut} style={{
-          width: '100%', padding: '9px 12px', borderRadius: 8,
-          background: 'transparent', border: '1px solid rgba(255,255,255,0.12)',
-          color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 13,
-          textAlign: 'left', display: 'flex', alignItems: 'center', gap: 8
-        }}>
-          <span>↩</span> Cerrar sesión
+      <div style={{ padding:'12px', borderTop:'1px solid #1E293B' }}>
+        <button onClick={signOut} style={{ width:'100%', padding:'8px 10px', borderRadius:6, background:'transparent', border:'none', color:'#64748B', cursor:'pointer', fontSize:13, display:'flex', alignItems:'center', gap:10 }}>
+          <i className="ti ti-logout" style={{ fontSize:16 }} aria-hidden="true" />
+          Cerrar sesión
         </button>
       </div>
     </aside>
